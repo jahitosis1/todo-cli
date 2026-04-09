@@ -3,7 +3,12 @@ all:
 	cargo build
 
 setup:
-	make
-	mkdir -p ~/.local/bin
-	rm ~/.local/bin/todo-app
-	ln -s "$(CURDIR)/target/debug/todo-cli" ~/.local/bin/todo-app
+	$(MAKE)
+	mkdir -p "$(HOME)/.local/bin"
+	ln -sf "$(CURDIR)/target/debug/todo-cli" "$(HOME)/.local/bin/todo-app"
+	@if ! printf '%s\n' "$$PATH" | grep -qE '(^|:)'$$HOME'/.local/bin(:|$$)'; then \
+		echo 'export PATH="$$HOME/.local/bin:$$PATH"' >> "$(HOME)/.zshrc"; \
+		echo 'Added ~/.local/bin to PATH in ~/.zshrc'; \
+	else \
+		echo '~/.local/bin already in PATH'; \
+	fi
