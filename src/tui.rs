@@ -38,6 +38,7 @@ struct AppState {
     input: String,
     input_cursor: usize,
     search_query: String,
+    g_pressed: bool,
 }
 
 impl AppState {
@@ -50,6 +51,7 @@ impl AppState {
             input: String::new(),
             input_cursor: 0,
             search_query: String::new(),
+            g_pressed: false,
         };
         app.reload_tasks(conn)?;
         Ok(app)
@@ -275,6 +277,7 @@ where
                 AppMode::Normal => match key.code {
                     KeyCode::Char('q') => return Ok(()),
                     KeyCode::Esc => {
+                        app.g_pressed = false;
                         if !app.search_query.is_empty() {
                             app.search_query.clear();
                             let _ = app.reload_tasks(conn);
@@ -282,26 +285,40 @@ where
                             return Ok(());
                         }
                     }
-                    KeyCode::Char('j') | KeyCode::Down => app.next(),
-                    KeyCode::Char('k') | KeyCode::Up => app.previous(),
+                    KeyCode::Char('j') | KeyCode::Down => {
+                        app.g_pressed = false;
+                        app.next();
+                    }
+                    KeyCode::Char('k') | KeyCode::Up => {
+                        app.g_pressed = false;
+                        app.previous();
+                    }
                     KeyCode::Char('g') => {
-                        if !app.tasks.is_empty() {
-                            app.selected = 0;
-                            app.list_state.select(Some(app.selected));
+                        if app.g_pressed {
+                            if !app.tasks.is_empty() {
+                                app.selected = 0;
+                                app.list_state.select(Some(app.selected));
+                            }
+                            app.g_pressed = false;
+                        } else {
+                            app.g_pressed = true;
                         }
                     }
                     KeyCode::Char('G') => {
+                        app.g_pressed = false;
                         if !app.tasks.is_empty() {
                             app.selected = app.tasks.len() - 1;
                             app.list_state.select(Some(app.selected));
                         }
                     }
                     KeyCode::Char('/') => {
+                        app.g_pressed = false;
                         app.mode = AppMode::Search;
                         app.input.clear();
                         app.input_cursor = 0;
                     }
                     KeyCode::Char('a') => {
+                        app.g_pressed = false;
                         if !app.tasks.is_empty() {
                             let parent_id = app.tasks[app.selected].id;
                             app.mode = AppMode::InputAdd(Some(parent_id));
@@ -310,11 +327,13 @@ where
                         }
                     }
                     KeyCode::Char('A') => {
+                        app.g_pressed = false;
                         app.mode = AppMode::InputAdd(None);
                         app.input.clear();
                         app.input_cursor = 0;
                     }
                     KeyCode::Char('r') => {
+                        app.g_pressed = false;
                         if !app.tasks.is_empty() {
                             let task_id = app.tasks[app.selected].id;
                             app.mode = AppMode::InputRename(task_id);
@@ -323,12 +342,14 @@ where
                         }
                     }
                     KeyCode::Char('d') | KeyCode::Delete => {
+                        app.g_pressed = false;
                         if !app.tasks.is_empty() {
                             let task_id = app.tasks[app.selected].id;
                             app.mode = AppMode::ConfirmDelete(task_id);
                         }
                     }
                     KeyCode::Char('x') | KeyCode::Char(' ') => {
+                        app.g_pressed = false;
                         if !app.tasks.is_empty() {
                             let task = &app.tasks[app.selected];
                             let task_id = task.id;
@@ -655,12 +676,12 @@ fn ui(f: &mut Frame, app: &mut AppState) {
     } else {
         let help_text = if !app.search_query.is_empty() {
             Paragraph::new(format!(
-                " FILTER: '{}' | Nav: j/k, g/G | Delete: d | Search: / | Esc: Clear Filter ",
+                " FILTER: '{}' | Nav: j/k, gg/G | Delete: d | Search: / | Esc: Clear Filter ",
                 app.search_query
             ))
         } else {
             Paragraph::new(
-                " Nav: j/k, g/G | Subtask/Task: a/A | Rename: r | Delete: d | Toggle: x/Space | Search: / | Quit: q ",
+                " Nav: j/k, gg/G | Subtask/Task: a/A | Rename: r | Delete: d | Toggle: x/Space | Search: / | Quit: q ",
             )
         };
         f.render_widget(
